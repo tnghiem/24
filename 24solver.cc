@@ -10,38 +10,83 @@
 
 
 #include <iostream>
-#include <cmath>
-#include <fstream>
+#include <string>
+#include <sstream>
 
 using namespace std;
 
 #define target 24 // number to obtain
 
-string OperatorSign(int k);
+string WriteOperation(int k, double x, string str);
 
-string OperatorSign(int k) // translates iterator on the four operations into an operator sign
+string WriteOperation(int k, double x, string str) // translates iterator on the four operations into result string
 {
-    if (k==0) { return " + "; }
-    if (k==1) { return " - "; }
-    if (k==2) { return "*"; }
-    if (k==3) { return "/"; }
+    if (k==0)
+        {
+            stringstream s;
+            s << "(" << str << " + " << x << ")";
+            return s.str();
+        }
+
+    if (k==1)
+        {
+            stringstream s;
+            s << "(" << str << " - " << x << ")";
+            return s.str();
+        }
+
+    if (k==2)
+        {
+            stringstream s;
+            s << "(" << x << " - " << str << ")";
+            return s.str();
+        }
+
+    if (k==3)
+        {
+            stringstream s;
+            s << str << "*" << x;
+            return s.str();
+        }
+
+    if (k==4)
+        {
+            stringstream s;
+            s << "(" << str << "/" << x << ")" ;
+            return s.str();
+        }
+
+    if (k==5)
+        {
+            stringstream s;
+            s << "(" << x << "/" << str << ")" ;
+            return s.str();
+        }
 }
 
 typedef double (*Operator) (double a, double b);
 double add (double a, double b);
 double subtract (double a, double b);
+double commute_subtract (double a, double b);
 double multiply (double a, double b);
 double divide (double a, double b);
+double commute_divide (double a, double b);
 
 double add (double a, double b)
 {
-    double sum = a+b;
+    double sum = a + b;
     return sum;
 }
 
 double subtract (double a, double b)
 {
-    double diff = a-b;
+    double diff = a - b;
+    return diff;
+}
+
+double commute_subtract (double a, double b)
+{
+    double diff = b - a;
     return diff;
 }
 
@@ -57,6 +102,12 @@ double divide (double a, double b)
     return quot;
 }
 
+double commute_divide (double a, double b)
+{
+    double quot = b/a;
+    return quot;
+}
+
 int main()
 {
     // four-operator array
@@ -64,18 +115,19 @@ int main()
     {
         add,
         subtract,
+        commute_subtract,
         multiply,
-        divide
+        divide,
+        commute_divide,
     };
 
     // variable definition and assignment
     double x[4]; // array of given numbers
     double xtest[4]; // permutation array to test
-    double val0, val1, valtest; // intermediary and final results to test
-    double xsol[4]; // solution array
-    string opsignsol[3]; // solution signs
-
-    xsol[0] = 0; // test for lack of solution
+    double valtest[4]; // intermediary and final results to test
+    string stringtest[3]; // intermediary and final written operations to test
+    bool sol = 0; // existence of a solution
+    double err = 0.01;
 
     cout<<"Enter four integers from 1 to 13"<<endl;
     for(int i=0; i<4; i++)
@@ -83,7 +135,7 @@ int main()
             cin>>x[i];
         }
 
-    // test permutation array filling
+    // test permutation array filling and testing
     for (int j0=0; j0<4; j0++)
     {
         xtest[0] = x[j0];
@@ -105,29 +157,33 @@ int main()
                                 xtest[3] = x[j3]; // test permutation array filled in
 
                                     // four operation testing on permutation array
-                                    for (int k0=0; k0<4; k0++)
+                                    for (int k0=0; k0<6; k0++)
                                     {
-                                        val0 = op[k0](xtest[0],xtest[1]);
-                                        for (int k1=0; k1<4; k1++)
-                                        {
-                                            val1 = op[k1](val0,xtest[2]);
-                                            for (int k2=0; k2<4; k2++)
-                                            {
-                                                valtest = op[k2](val1,xtest[3]);
-                                                if (valtest == target) // if the result is 24
-                                                {
-                                                    for (int l=0; l<4; l++)
-                                                    {
-                                                        xsol[l]=xtest[l]; // copy the solution to a solution array
-                                                    }
-                                                    opsignsol[0] = OperatorSign(k0);
-                                                    opsignsol[1] = OperatorSign(k1);
-                                                    opsignsol[2] = OperatorSign(k2); // copy the operator signs to op. sign array
-                                                }
-                                            }
-                                        }
-                                    }
+                                        valtest[0] = op[k0](xtest[0],xtest[1]);
+                                        stringstream sstr;
+                                        sstr.str("");
+                                        sstr << xtest[0]; //writing the first test number into a string in order to write the operation
+                                        stringtest[0] = WriteOperation(k0,xtest[1],sstr.str());
 
+                                        for (int k1=0; k1<6; k1++)
+                                        {
+                                            valtest[1] = op[k1](valtest[0],xtest[2]);
+                                            stringtest[1] = WriteOperation(k1,xtest[2],stringtest[0]);
+
+                                            for (int k2=0; k2<6; k2++)
+                                            {
+                                                valtest[2] = op[k2](valtest[1],xtest[3]);
+                                                stringtest[2] = WriteOperation(k2,xtest[3],stringtest[1]);
+
+                                                if ((valtest[2] - target)*(valtest[2] - target)<err*err) // if the result is 24
+                                                {
+                                                    sol = 1;
+                                                    cout<<valtest[2]<<"\t"<<stringtest[2]<<endl;
+                                                }// endif 24
+                                            }// end for on k2
+                                        }// end for on k1
+                                    }// end for on k0
+                                    // end four-operation testing
 
                             }// endif on j3
                         }// end for on j3
@@ -140,13 +196,9 @@ int main()
     }// end for on j0
 
     // solution output
-    if (xsol[0]==0) // no solution found
+    if (sol == 0) // no solution found
     {
         cout << "No solution!" << endl;
-    }
-    else // at least one solution found
-    {
-        cout<<"(("<<xsol[0]<<opsignsol[0]<<xsol[1]<<")"<<opsignsol[1]<<xsol[2]<<")"<<opsignsol[2]<<xsol[3]<<endl;
     }
 
     return 0;
